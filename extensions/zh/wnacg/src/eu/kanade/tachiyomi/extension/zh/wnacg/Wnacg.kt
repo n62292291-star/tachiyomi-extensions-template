@@ -1,4 +1,3 @@
-
 package eu.kanade.tachiyomi.extension.zh.wnacg
 
 import eu.kanade.tachiyomi.network.GET
@@ -22,19 +21,52 @@ class Wnacg : ParsedHttpSource() {
         .rateLimit(2)
         .build()
 
-    override fun popularMangaRequest(page: Int): Request =
-        GET("$baseUrl/albums.html?page=$page", headers)
+    override fun headersBuilder() = super.headersBuilder()
+        .set("User-Agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36")
 
-    override fun popularMangaSelector() = "div.gallery"
-
-    override fun popularMangaFromElement(element: Element): SManga {
-        return SManga.create().apply {
-            title = element.select("h2 a").text()
-            thumbnail_url = element.select("img").attr("abs:src")
-            url = element.select("a").attr("abs:href")
-        }
+    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/albums.html?page=$page", headers)
+    override fun popularMangaSelector() = "div.gallery, a[href*='photos-index-aid']"
+    
+    override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
+        title = element.select("h2 a, a").text().trim()
+        thumbnail_url = element.select("img").attr("abs:src").ifBlank { element.select("img").attr("data-src") }
+        url = element.select("a").attr("abs:href")
     }
 
+    override fun latestUpdatesRequest(page: Int) = popularMangaRequest(page)
+    override fun latestUpdatesSelector() = popularMangaSelector()
+    override fun latestUpdatesFromElement(element: Element) = popularMangaFromElement(element)
+
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
+        GET("$baseUrl/albums.html?search=$query&page=$page", headers)
+
+    override fun searchMangaSelector() = popularMangaSelector()
+    override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
+
+    override fun mangaDetailsParse(document: Document): SManga = SManga.create().apply {
+        title = document.select("h1").text()
+        description = document.select("p, .info").text()
+        thumbnail_url = document.select("img.cover, .pic img").attr("abs:src")
+    }
+
+    override fun chapterListSelector() = "a[href*='photos-index-aid']"
+    override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
+        name = element.text().ifBlank { "正文" }
+        url = element.attr("abs:href")
+    }
+
+    override fun pageListParse(document: Document): List<Page> {
+        return document.select("img[data-original], img[data-src], img[src*='photo']")
+            .mapIndexed { index, el ->
+                val url = el.attr("abs:data-original")
+                    .ifBlank { el.attr("abs:data-src") }
+                    .ifBlank { el.attr("abs:src") }
+                Page(index, imageUrl = url)
+            }
+    }
+
+    override fun imageUrlParse(document: Document) = throw UnsupportedOperationException()
+}
     override fun latestUpdatesRequest(page: Int) = popularMangaRequest(page)
     override fun latestUpdatesSelector() = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element) = popularMangaFromElement(element)
