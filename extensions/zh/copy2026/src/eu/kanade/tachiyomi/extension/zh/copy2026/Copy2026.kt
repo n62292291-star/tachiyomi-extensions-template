@@ -25,7 +25,6 @@ class Copy2026 : ParsedHttpSource() {
         .set("User-Agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36")
         .set("Referer", baseUrl)
 
-    // 首页热门 / 最新
     override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/?page=$page", headers)
     override fun popularMangaSelector() = "div.comic-item, a[href*='/comic/']"
     override fun popularMangaFromElement(element: Element): SManga = SManga.create().apply {
@@ -38,14 +37,12 @@ class Copy2026 : ParsedHttpSource() {
     override fun latestUpdatesSelector() = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element) = popularMangaFromElement(element)
 
-    // 搜索
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         GET("$baseUrl/search?keyword=$query&page=$page", headers)
 
     override fun searchMangaSelector() = popularMangaSelector()
     override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
 
-    // 详情
     override fun mangaDetailsParse(document: Document): SManga = SManga.create().apply {
         title = document.select("h1").text()
         author = document.select("span:contains(作者), .author").text()
@@ -61,7 +58,6 @@ class Copy2026 : ParsedHttpSource() {
         url = element.attr("abs:href")
     }
 
-    // 图片
     override fun pageListParse(document: Document): List<Page> {
         return document.select("img[data-original], img[data-src], img[src*='photo'], .comic img")
             .mapIndexed { index, el ->
