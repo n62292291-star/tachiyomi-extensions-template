@@ -6,7 +6,6 @@ on:
     branches: [ master, main ]
     paths:
       - 'extensions/**'
-      - '**.gradle.kts'
 
 jobs:
   build:
@@ -28,16 +27,20 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build Release
-        run: ./gradlew :assembleRelease
+      - name: Build Extensions
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Generate Repository Index
+        run: ./gradlew generateExtensionsJson --no-daemon   # 生成 repo/index.min.json
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: extensions
           path: |
-            **/build/libs/*.apk
+            **/build/outputs/apk/**/*.apk
             repo/
+          if-no-files-found: warn
 
       - name: Deploy to repo branch
         if: success()
