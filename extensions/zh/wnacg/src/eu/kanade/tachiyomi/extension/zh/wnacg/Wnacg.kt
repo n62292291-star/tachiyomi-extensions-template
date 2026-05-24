@@ -39,7 +39,6 @@ class Wnacg : ParsedHttpSource() {
     override fun latestUpdatesSelector() = popularMangaSelector()
     override fun latestUpdatesFromElement(element: Element) = popularMangaFromElement(element)
 
-    // ==================== 搜索 ====================
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request =
         GET("$baseUrl/albums.html?search=$query&page=$page", headers)
 
@@ -53,28 +52,45 @@ class Wnacg : ParsedHttpSource() {
         thumbnail_url = document.selectFirst("img.cover, .pic img")?.attr("abs:src") ?: ""
     }
 
-    // ==================== 章节 ====================
-    override fun chapterListSelector() = "a[href*='photos-index-aid']"
-
-    override fun chapterFromElement(element: Element): SChapter = SChapter.create().apply {
-        name = element.text().ifBlank { "正文" }
-        url = element.attr("href")
-    }
-
+    // ==================== 章节（单本图集）===================
     override fun chapterListParse(response: Response): List<SChapter> {
-        return super.chapterListParse(response).reversed()
+        var currentPath = response.request.url.encodedPath
+        if (currentPath.contains("photos-aid")) {
+            currentPath = currentPath.replace("photos-aid", "photos-index-aid")
+        }
+        
+        val chapter = SChapter.create().apply {
+            name = "单行本 / 全一话"
+            url = currentPath
+        }
+        return listOf(chapter)
     }
 
-    // ==================== 图片 ====================
+    // ==================== 图片（Slide 阅读模式）===================
+    override fun pageListRequest(chapter: SChapter): Request {
+        val slideUrl = chapter.url.replace("photos-index-aid", "photos-slide-aid")
+        return GET(baseUrl + slideUrl, headers)
+    }
+
     override fun pageListParse(document: Document): List<Page> {
-        return document.select("img[data-original], img[data-src], img[src*='photo']")
-            .mapIndexed { index, el ->
-                val url = el.attr("abs:data-original")
-                    .ifBlank { el.attr("abs:data-src") }
-                    .ifBlank { el.attr("abs:src") }
-                Page(index, imageUrl = url)
-            }
+        val scriptContent = document.select("script:containsData(fast_img_host), script:containsData(imglist)")
+            .firstOrNull()?.data() ?: return emptyList()
+
+        val cleanScript = scriptContent.replace("\\/", "/")
+
+        val regex = """//[^"'\s]+\.(?:jpg|png|jpeg|webp)""".toRegex(RegexOption.IGNORE_CASE)
+        val matches = regex.findAll(cleanScript)
+
+        return matches.mapIndexed { index, match ->
+            var imgUrl = match.value
+            if (imgUrl.startsWith("//")) imgUrl = "https:$imgUrl"
+            Page(index, imageUrl = imgUrl)
+        }.toList()
     }
 
-    override fun imageUrlParse(document: Document) = throw UnsupportedOperationException()
+    override fun imageUrlParse(document: Document): String = throw UnsupportedOperationException()
+
+    // 必须显式声明返回类型，避免 Kotlin 编译错误
+    override fun chapterListSelector(): String = throw UnsupportedOperationException()
+    override fun chapterFromElement(element: Element): SChapter = throw UnsupportedOperationException()
 }
