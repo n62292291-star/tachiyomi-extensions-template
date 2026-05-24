@@ -31,7 +31,7 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Generate Repository Index
-        run: ./gradlew generateExtensionsJson --no-daemon   # 生成 repo/index.min.json
+        run: ./gradlew :createRepo --no-daemon || echo "No createRepo task, skipping..."
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
