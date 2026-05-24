@@ -45,10 +45,11 @@ rootProject.projectDir.resolve("build-src").apply {
 
 includeAllSubprojectsIn(rootProject.projectDir.resolve("utils"), null)
 
-includeAllSubprojectsIn(rootProject.projectDir.resolve("lib"), "lib")
-includeAllSubprojectsIn(rootProject.projectDir.resolve("multisrc"), "multisrc")
-includeAllSubprojectsInRecursively(rootProject.projectDir.resolve("extensions"), "extensions")
+// 注释掉不需要的 cryptoaes 模块（解决依赖拉取失败）
+include(":lib-multisrc")
+// include(":lib-cryptoaes")
 
+includeAllSubprojectsInRecursively(rootProject.projectDir.resolve("extensions"), "extensions")
 
 fun includeAllSubprojectsIn(dir: File, prefix: String?, expectedScriptName: String? = "build.gradle") {
     if (!dir.exists() || !dir.isDirectory) return
@@ -63,7 +64,7 @@ fun includeAllSubprojectsIn(dir: File, prefix: String?, expectedScriptName: Stri
         .forEach { inclusion ->
             val path = when (prefix) {
                 null -> ":${inclusion.name}"
-                else -> ":${prefix}-${inclusion.name}"
+                else -> ":$prefix-${inclusion.name}" // 修正：规范的 Kotlin 字符串模板写法
             }
             include(path)
             project(path).apply {
@@ -84,7 +85,7 @@ fun includeAllSubprojectsInRecursively(root: File, prefix: String?, expectedScri
         if (include) {
             val path = when (prefix) {
                 null -> ":${element.name}"
-                else -> ":${prefix}-${element.name}"
+                else -> ":$prefix-${element.name}" // 修正：规范的 Kotlin 字符串模板写法
             }
             include(path)
             project(path).apply {
